@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Berry Jump</title>
+    <style>
+      :root {
+        --bg1: #cfe9e3;
+        --bg2: #eef9f6;
+        --accent: #2bd4a7;
+        --ink: #0b1a16;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        font-family: system-ui, Arial, Helvetica;
+      }
+
+      body {
+        background: radial-gradient(
+            60% 60% at 50% 45%,
+            rgba(255, 255, 255, 0.85) 0%,
+            rgba(255, 255, 255, 0.35) 40%,
+            rgba(207, 233, 227, 0.6) 60%,
+            rgba(207, 233, 227, 1) 100%
+          ),
+          linear-gradient(var(--bg2), var(--bg1));
+        overflow: hidden;
+      }
+
+      body::before {
+        content: "";
+        position: fixed;
+        inset: auto 0 0 0;
+        top: -30vh;
+        height: 160vh;
+        pointer-events: none;
+        background: radial-gradient(
+              closest-side,
+              rgba(255, 255, 255, 0.9),
+              rgba(255, 255, 255, 0) 70%
+            )
+            center 30%/100% 100% no-repeat,
+          linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.35),
+            rgba(255, 255, 255, 0.05) 60%,
+            rgba(255, 255, 255, 0.35)
+          );
+        mix-blend-mode: screen;
+        filter: blur(6px) drop-shadow(0 0 30px rgba(255, 255, 255, 0.4));
+        animation: beam 6s linear infinite;
+      }
+
+      @keyframes beam {
+        0% {
+          transform: translateY(0);
+        }
+
+        100% {
+          transform: translateY(-10%);
+        }
+      }
+
+      .wrap {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        padding: 12px;
+      }
+
+      #game {
+        width: min(420px, 95vw);
+        height: min(740px, 95vh);
+        border-radius: 18px;
+        box-shadow: 0 10px 40px rgba(21, 45, 38, 0.25),
+          inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+        background: rgba(255, 255, 255, 0.45);
+        backdrop-filter: blur(8px);
+        position: relative;
+        overflow: hidden;
+      }
+
+      canvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        touch-action: none;
+        -webkit-user-select: none;
+      }
+
+      .hud {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        display: flex;
+        gap: 10px;
+        padding: 10px;
+        justify-content: space-between;
+        font-weight: 700;
+        color: var(--ink);
+      }
+
+      .pill {
+        background: rgba(255, 255, 255, 0.7);
+        padding: 6px 10px;
+        border-radius: 999px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      }
+
+      .overlay {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(
+          to bottom,
+          rgba(255, 255, 255, 0.85),
+          rgba(255, 255, 255, 0.5)
+        );
+        color: var(--ink);
+      }
+
+      .card {
+        width: 88%;
+        max-width: 520px;
+        background: #ffffffdd;
+        border-radius: 16px;
+        padding: 16px;
+        box-shadow: 0 20px 60px rgba(5, 25, 20, 0.3);
+      }
+
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .avatar {
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        font-weight: 900;
+        color: #04221b;
+        background: conic-gradient(from 0deg, #d7fff2, #baf3e3, #cef7ef);
+        border: 2px solid rgba(0, 0, 0, 0.08);
+        cursor: pointer;
+      }
+
+      .avatar.sel {
+        outline: 3px solid var(--accent);
+      }
+
+      .actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 10px;
+      }
+
+      button {
+        padding: 10px 14px;
+        border-radius: 12px;
+        border: none;
+        background: var(--accent);
+        color: #002c22;
+        font-weight: 800;
+        cursor: pointer;
+        box-shadow: 0 8px 20px rgba(43, 212, 167, 0.35);
+      }
+
+      button.secondary {
+        background: #eaf8f4;
+        color: #0b1a16;
+      }
+
+      input[type="file"] {
+        display: none;
+      }
+
+      label.up {
+        padding: 10px 14px;
+        border-radius: 12px;
+        background: #eaf8f4;
+        color: #0b1a16;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .toast {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: 10px;
+        padding: 8px 12px;
+        background: rgba(0, 0, 0, 0.75);
+        color: #fff;
+        border-radius: 10px;
+        font-size: 12px;
+        opacity: 0;
+        transition: opacity 0.3s;
+      }
+
+      .toast.show {
+        opacity: 1;
+      }
+
+      .help {
+        position: absolute;
+        right: 8px;
+        bottom: 8px;
+        font-size: 12px;
+        opacity: 0.7;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="wrap">
+      <div id="game">
+        <canvas id="cv" width="420" height="740"></canvas>
+        <div class="hud">
+          <div class="pill" id="scorePill">Score: 0</div>
+          <div class="pill">Height: <span id="heightVal">0</span></div>
+          <div class="pill">Time: <span id="timeVal">0.0</span>s</div>
+          <div class="pill">High: <span id="highVal">0</span></div>
+          <div class="pill btn" id="pauseBtn">⏸</div>
+        </div>
+        <div class="help">← → or swipe</div>
+        <div class="overlay" id="startOv">
+          <div class="card">
+            <h2 style="margin: 0 0 8px">Berry Jump</h2>
+            <p style="margin: 0 0 10px">
+              Pick a character, then tap <b>Start</b>. Move with ←
+              → or swipe.
+            </p>
+            <div class="row" id="avatarRow"></div>
+            <div class="actions">
+              <button id="startBtn">Start</button>
+              <label class="up" for="fileIn">Upload character</label>
+              <input id="fileIn" type="file" accept="image/*" />
+              <button class="secondary" id="themeBtn">Toggle Theme</button>
+            </div>
+          </div>
+        </div>
+        <div class="overlay" id="pauseOv" style="display: none">
+          <div class="card" style="text-align: center">
+            <h3>Paused</h3>
+            <div class="actions" style="justify-content: center">
+              <button id="resumeBtn">Resume</button>
+              <button class="secondary" id="restartBtn">Restart</button>
+            </div>
+          </div>
+        </div>
+        <div class="overlay" id="gameOverOv" style="display: none">
+          <div class="card" style="text-align: center">
+            <h3>Game Over</h3>
+            <p>Your score: <b id="finalScore">0</b></p>
+            <div class="actions" style="justify-content: center">
+              <button id="againBtn">Play Again</button>
+            </div>
+          </div>
+        </div>
+        <div class="toast" id="toast">+ Power-up!</div>
+      </div>
+    </div>
+    <script>
+      const cv = document.getElementById("cv");
+      const ctx = cv.getContext("2d");
+      const W = cv.width,
+        H = cv.height;
+      let running = false,
+        paused = false,
+        gameOver = false;
+      let lastTime = 0,
+        timeAlive = 0;
+      let cameraY = 0;
+      let score = 0,
+        heightScore = 0,
+        high = +localStorage.getItem("dj_high") || 0;
+      document.getElementById("highVal").textContent = high;
+      const imagePaths = [
+        "\Brett-removebg-preview.png",
+        "\Jacob-removebg-preview.png",
+        "\Kashvi-removebg-preview.png",
+        "\Reka-removebg-preview.png",
+        "\RISC-removebg-preview.png",
+        "\Santi-removebg-preview.png",
+      ];
+
+      const avatars = [];
+      let playerImg = new Image();
+      let selectedIdx = 0;
+      const row = document.getElementById("avatarRow");
+
+      function preloadAvatars(paths, done) {
+        let loaded = 0;
+        paths.forEach((p, i) => {
+          const img = new Image();
+          img.onload = () => {
+            avatars[i] = img;
+            loaded++;
+            if (loaded === paths.length) done && done();
+          };
+          img.onerror = () => {
+            avatars[i] = null;
+            loaded++;
+            if (loaded === paths.length) done && done();
+          };
+          img.src = p;
+        });
+      }
+
+      function buildAvatarUI() {
+        row.innerHTML = "";
+        avatars.forEach((img, i) => {
+          const d = document.createElement("div");
+          d.className = "avatar" + (i === selectedIdx ? " sel" : "");
+          if (img) d.style.backgroundImage = `url(${img.src})`;
+          else d.textContent = String(i + 1);
+          d.style.backgroundSize = "cover";
+          d.addEventListener("click", () => {
+            selectedIdx = i;
+            if (avatars[i]) playerImg = avatars[i];
+            [...row.children].forEach((el) => el.classList.remove("sel"));
+            d.classList.add("sel");
+          });
+          row.appendChild(d);
+        });
+        if (avatars[0]) playerImg = avatars[0];
+      }
+
+      preloadAvatars(imagePaths, buildAvatarUI);
+
+      const fileIn = document.getElementById("fileIn");
+      fileIn.addEventListener("change", (e) => {
+        const f = e.target.files[0];
+        if (!f) return;
+        const img = new Image();
+        img.onload = () => {
+          avatars.push(img);
+          const i = avatars.length - 1;
+          const d = document.createElement("div");
+          d.className = "avatar";
+          d.style.backgroundImage = `url(${img.src})`;
+          d.style.backgroundSize = "cover";
+          d.addEventListener("click", () => {
+            selectedIdx = i;
+            playerImg = avatars[i];
+            [...row.children].forEach((el) => el.classList.remove("sel"));
+            d.classList.add("sel");
+          });
+          row.appendChild(d);
+          selectedIdx = i;
+          playerImg = avatars[i];
+          [...row.children].forEach((el) => el.classList.remove("sel"));
+          d.classList.add("sel");
+          toast("Custom character set");
+        };
+        img.src = URL.createObjectURL(f);
+      });
+
+      const powerupImgs = {
+        berryblast: new Image(),
+        c4: new Image(),
+        inviciberry: new Image(),
+      };
+      powerupImgs.berryblast.src = "jetpack-removebg-preview.png";
+      powerupImgs.c4.src = "c4-removebg-preview.png";
+      powerupImgs.inviciberry.src = "Diamond_berry-removebg-preview.png";
+
+      // const avatars = [];
+      // function makeAvatarCanvas(letter, hue) {
+      //     const c = document.createElement('canvas'); c.width = 64; c.height = 64; const x = c.getContext('2d');
+      //     x.fillStyle = `hsl(${hue},80%,85%)`; x.beginPath(); x.arc(32, 32, 30, 0, Math.PI * 2); x.fill();
+      //     x.strokeStyle = `hsl(${hue},60%,45%)`; x.lineWidth = 3; x.stroke();
+      //     x.fillStyle = '#04221b'; x.font = '900 28px system-ui'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(letter, 32, 36);
+      //     return c;
+      // }
+      // '★◆■●▲♣'.split('').forEach((s, i) => avatars.push(makeAvatarCanvas(s, 160 + i * 25)));
+      // let playerImg = avatars[0];
+      // const row = document.getElementById('avatarRow');
+      // let selectedIdx = 0;
+      // avatars.forEach((c, i) => {
+      //     const d = document.createElement('div'); d.className = 'avatar' + (i === 0 ? ' sel' : '');
+      //     d.style.backgroundImage = `url(${c.toDataURL()})`; d.style.backgroundSize = 'cover';
+      //     d.addEventListener('click', () => { selectedIdx = i; playerImg = avatars[i];[...row.children].forEach(el => el.classList.remove('sel')); d.classList.add('sel'); });
+      //     row.appendChild(d);
+      // });
+      document.getElementById("fileIn").addEventListener("change", (e) => {
+        const f = e.target.files[0];
+        if (!f) return;
+        const img = new Image();
+        img.onload = () => {
+          playerImg = img;
+          toast("Custom character set");
+        };
+        img.src = URL.createObjectURL(f);
+      });
+      document.getElementById("themeBtn").onclick = () => {
+        const dark = document.body.dataset.dark === "1";
+        document.body.dataset.dark = dark ? "0" : "1";
+        if (!dark) {
+          document.documentElement.style.setProperty("--bg1", "#0f2d26");
+          document.documentElement.style.setProperty("--bg2", "#164038");
+          document.getElementById("game").style.background = "rgba(0,0,0,.25)";
+        } else {
+          document.documentElement.style.setProperty("--bg1", "#cfe9e3");
+          document.documentElement.style.setProperty("--bg2", "#eef9f6");
+          document.getElementById("game").style.background =
+            "rgba(255,255,255,.45)";
+        }
+      };
+      const keys = { left: false, right: false };
+      let touchState = { active: false, lastX: 0, pointerId: null };
+      const GRAV = 0.35,
+        JUMP_VY = -9.5;
+      const PLAYER = {
+        x: W / 2,
+        y: H - 80,
+        vx: 0,
+        vy: 0,
+        w: 36,
+        h: 42,
+        alive: true,
+        shield: 0,
+        jet: 0,
+      };
+      const platforms = [];
+      const powerups = [];
+      const TYPES = { STATIC: 0, MOVING: 1, BREAK: 2 };
+      function reset() {
+        running = false;
+        paused = false;
+        gameOver = false;
+        timeAlive = 0;
+        score = 0;
+        heightScore = 0;
+        cameraY = 0;
+        lastTime = 0;
+        PLAYER.x = W / 2;
+        PLAYER.y = H - 80;
+        PLAYER.vx = 0;
+        PLAYER.vy = 0;
+        PLAYER.alive = true;
+        PLAYER.shield = 0;
+        PLAYER.jet = 0;
+        platforms.length = 0;
+        powerups.length = 0;
+        addPlatform(
+          PLAYER.x + PLAYER.w / 2,
+          PLAYER.y + PLAYER.h + 6,
+          TYPES.STATIC
+        );
+        const startP = platforms[platforms.length - 1];
+        PLAYER.y = startP.y - PLAYER.h;
+        PLAYER.vy = JUMP_VY;
+        let y = startP.y - 60;
+        for (let i = 0; i < 11; i++) {
+          addPlatform(Math.random() * (W - 80) + 40, y);
+          y -= 60;
+        }
+      }
+      function addPlatform(x, y, forceType) {
+        const r = Math.random();
+        let type = TYPES.STATIC;
+        if (typeof forceType !== "undefined") {
+          type = forceType;
+        } else {
+          if (score >= 1200) {
+            if (r > 0.75) type = TYPES.MOVING;
+            else if (r > 0.55) type = TYPES.BREAK;
+            else type = TYPES.STATIC;
+          } else if (score >= 600) {
+            if (r > 0.65) type = TYPES.BREAK;
+            else type = TYPES.STATIC;
+          } else {
+            type = TYPES.STATIC;
+          }
+        }
+        const p = {
+          x: x - 35,
+          y,
+          w: 70,
+          h: 12,
+          type,
+          dir: Math.random() < 0.5 ? -1 : 1,
+          life: type === TYPES.BREAK ? 1 : Infinity,
+          speed: 1.2 + Math.random() * 1.4,
+        };
+        platforms.push(p);
+        if (Math.random() < 0.12) {
+          const r2 = Math.random();
+          let kind;
+          if (r2 < 0.75) kind = "berryblast";
+          else if (r2 < 0.95) kind = "inviciberry";
+          else kind = "c4";
+          powerups.push({
+            x: p.x + p.w / 2 - 10,
+            y: p.y - 18,
+            type: kind,
+            active: true,
+          });
+        }
+      }
+      function update(dt) {
+        if (!running || paused) return;
+        timeAlive += dt / 1000;
+        const acc = 0.5;
+        if (keys.left) PLAYER.vx -= acc;
+        if (keys.right) PLAYER.vx += acc;
+        if (touchState.active) {
+          const rect = cv.getBoundingClientRect();
+          const scaleX = cv.width / rect.width;
+          const targetXcanvas = (touchState.lastX - rect.left) * scaleX;
+          const center = PLAYER.x + PLAYER.w / 2;
+          const diff = targetXcanvas - center;
+          const targetVel = Math.max(-9, Math.min(9, diff * 0.035));
+          PLAYER.vx += (targetVel - PLAYER.vx) * 0.28;
+        }
+        PLAYER.vy += GRAV * (PLAYER.jet > 0 ? 0.35 : 1);
+        PLAYER.x += PLAYER.vx;
+        PLAYER.y += PLAYER.vy;
+        PLAYER.vx *= 0.92;
+        if (PLAYER.x < -PLAYER.w) PLAYER.x = W;
+        if (PLAYER.x > W) PLAYER.x = -PLAYER.w;
+        if (PLAYER.vy > 0) {
+          for (const p of platforms) {
+            if (
+              PLAYER.x + PLAYER.w > p.x &&
+              PLAYER.x < p.x + p.w &&
+              PLAYER.y + PLAYER.h > p.y &&
+              PLAYER.y + PLAYER.h < p.y + p.h + PLAYER.vy + 2
+            ) {
+              if (p.life > 0) {
+                PLAYER.y = p.y - PLAYER.h;
+                PLAYER.vy = JUMP_VY * (PLAYER.jet > 0 ? 0.7 : 1);
+                if (p.type === TYPES.BREAK) {
+                  p.life--;
+                  if (p.life <= 0) {
+                    p.brokeAt = performance.now();
+                  }
+                }
+              }
+            }
+          }
+        }
+        for (const pu of powerups) {
+          if (!pu.active) continue;
+          if (
+            PLAYER.x + PLAYER.w > pu.x &&
+            PLAYER.x < pu.x + 20 &&
+            PLAYER.y + PLAYER.h > pu.y &&
+            PLAYER.y < pu.y + 20
+          ) {
+            pu.active = false;
+            if (pu.type === "berryblast") {
+              PLAYER.vy = JUMP_VY * 1.6;
+              toast("BerryBlast!");
+            } else if (pu.type === "c4") {
+              PLAYER.jet = 2200;
+              PLAYER.vy = JUMP_VY * 2.6;
+              toast("C4!");
+            } else if (pu.type === "inviciberry") {
+              PLAYER.shield = 3000;
+              toast("Inviciberry!");
+            }
+          }
+        }
+        if (PLAYER.jet > 0) {
+          PLAYER.jet -= dt;
+        }
+        if (PLAYER.shield > 0) {
+          PLAYER.shield -= dt;
+        }
+        for (const p of platforms) {
+          if (p.type === TYPES.MOVING) {
+            p.x += p.dir * p.speed;
+            if (p.x < 10 || p.x + p.w > W - 10) p.dir *= -1;
+          }
+          if (p.type === TYPES.BREAK && p.life <= 0) {
+            p.y += 3;
+            p.alpha = (p.alpha ?? 1) * 0.98;
+            if (p.y - cameraY > H + 50) p.remove = true;
+          }
+        }
+        const threshold = H * 0.45;
+        if (PLAYER.y - cameraY < threshold) {
+          const delta = threshold - (PLAYER.y - cameraY);
+          cameraY -= delta;
+          heightScore += delta;
+        }
+        for (const p of platforms) {
+          if (p.y - cameraY > H + 30) p.remove = true;
+        }
+        for (const pu of powerups) {
+          if (pu.y - cameraY > H + 60) pu.remove = true;
+        }
+        removeIf(platforms, (p) => p.remove);
+        removeIf(
+          powerups,
+          (p) => p.remove || (!p.active && Math.random() < 0.002)
+        );
+        while (platforms.length < 14) {
+          const topY = Math.min(...platforms.map((p) => p.y));
+          addPlatform(
+            Math.random() * (W - 80) + 40,
+            topY - (50 + Math.random() * 40)
+          );
+        }
+        if (PLAYER.y - cameraY > H + 40) {
+          if (PLAYER.shield > 0) {
+            PLAYER.y = cameraY + H - 120;
+            PLAYER.vy = JUMP_VY * 1.2;
+            PLAYER.shield = 0;
+          } else {
+            endGame();
+          }
+        }
+        score = Math.floor(heightScore * 0.1);
+        document.getElementById("heightVal").textContent =
+          Math.floor(heightScore);
+        document.getElementById("timeVal").textContent = timeAlive.toFixed(1);
+        document.getElementById("scorePill").textContent = `Score: ${score}`;
+      }
+      function removeIf(arr, pred) {
+        for (let i = arr.length - 1; i >= 0; i--)
+          if (pred(arr[i])) arr.splice(i, 1);
+      }
+      function draw() {
+        ctx.clearRect(0, 0, W, H);
+        const cy = H * 0.45;
+        const grd = ctx.createRadialGradient(W / 2, cy, 40, W / 2, cy, 220);
+        grd.addColorStop(0, "rgba(255,255,255,.85)");
+        grd.addColorStop(0.6, "rgba(255,255,255,.18)");
+        grd.addColorStop(1, "rgba(255,255,255,0)");
+        ctx.fillStyle = grd;
+        ctx.beginPath();
+        ctx.arc(W / 2, cy, 220, 0, Math.PI * 2);
+        ctx.fill();
+        for (const p of platforms) {
+          const yy = p.y - cameraY;
+          ctx.save();
+          ctx.globalAlpha = p.alpha ?? 1;
+          ctx.fillStyle =
+            p.type === TYPES.BREAK
+              ? "rgba(255,120,120,.95)"
+              : "rgba(255,255,255,.92)";
+          ctx.strokeStyle = "rgba(0,0,0,.12)";
+          roundRect(ctx, p.x, yy, p.w, p.h, 5);
+          ctx.fill();
+          ctx.stroke();
+          if (p.type === TYPES.MOVING) {
+            ctx.fillStyle = "rgba(0,0,0,.15)";
+            for (let i = 0; i < 4; i++)
+              ctx.fillRect(p.x + 10 + i * 12, yy + 4, 6, 4);
+          }
+          ctx.restore();
+        }
+
+        for (const pu of powerups) {
+          if (!pu.active) continue;
+          const yy = pu.y - cameraY;
+          ctx.save();
+          const img = powerupImgs[pu.type];
+          if (img && img.complete) {
+            ctx.drawImage(img, pu.x, yy, 20, 20);
+          }
+          ctx.restore();
+        }
+
+        // for (const pu of powerups) {
+        //   if (!pu.active) continue;
+        //   const yy = pu.y - cameraY;
+        //   ctx.save();
+        //   if (pu.type === "berryblast") {
+        //     ctx.fillStyle = "#7be7b9";
+        //     ctx.fillRect(pu.x + 3, yy + 10, 14, 6);
+        //     ctx.fillRect(pu.x, yy + 4, 20, 6);
+        //   } else if (pu.type === "c4") {
+        //     ctx.fillStyle = "#8ec7ff";
+        //     ctx.beginPath();
+        //     roundRect(ctx, pu.x, yy, 20, 20, 6);
+        //     ctx.fill();
+        //   } else if (pu.type === "inviciberry") {
+        //     ctx.strokeStyle = "#66e0ff";
+        //     ctx.lineWidth = 3;
+        //     ctx.beginPath();
+        //     ctx.arc(pu.x + 10, yy + 10, 10, 0, Math.PI * 2);
+        //     ctx.stroke();
+        //   }
+        //   ctx.restore();
+        // }
+        const px = PLAYER.x,
+          py = PLAYER.y - cameraY;
+        if (playerImg) {
+          ctx.drawImage(playerImg, px, py, PLAYER.w, PLAYER.h);
+        } else {
+          ctx.fillStyle = "var(--ink)";
+          roundRect(ctx, px, py, PLAYER.w, PLAYER.h, 8);
+          ctx.fill();
+        }
+        if (PLAYER.shield > 0) {
+          ctx.strokeStyle = "rgba(102,224,255,.9)";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(
+            px + PLAYER.w / 2,
+            py + PLAYER.h / 2,
+            Math.max(PLAYER.w, PLAYER.h) / 1.4,
+            0,
+            Math.PI * 2
+          );
+          ctx.stroke();
+        }
+      }
+      function roundRect(ctx, x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+      }
+      function loop(t) {
+        const dt = lastTime ? t - lastTime : 16;
+        lastTime = t;
+        if (!paused && running) update(dt);
+        draw();
+        requestAnimationFrame(loop);
+      }
+      function start() {
+        document.getElementById("startOv").style.display = "none";
+        running = true;
+        paused = false;
+        lastTime = 0;
+      }
+      function pause() {
+        if (!running || gameOver) return;
+        paused = true;
+        document.getElementById("pauseOv").style.display = "flex";
+      }
+      function resume() {
+        paused = false;
+        document.getElementById("pauseOv").style.display = "none";
+      }
+      function endGame() {
+        running = false;
+        gameOver = true;
+        document.getElementById("gameOverOv").style.display = "flex";
+        document.getElementById("finalScore").textContent = score;
+        if (score > high) {
+          high = score;
+          localStorage.setItem("dj_high", high);
+          document.getElementById("highVal").textContent = high;
+        }
+      }
+      document.getElementById("pauseBtn").onclick = pause;
+      document.getElementById("resumeBtn").onclick = resume;
+      document.getElementById("restartBtn").onclick = () => {
+        document.getElementById("pauseOv").style.display = "none";
+        reset();
+        start();
+      };
+      document.getElementById("againBtn").onclick = () => {
+        document.getElementById("gameOverOv").style.display = "none";
+        reset();
+        start();
+      };
+      document.getElementById("startBtn").onclick = () => {
+        reset();
+        start();
+      };
+      window.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowLeft") keys.left = true;
+        if (e.key === "ArrowRight") keys.right = true;
+        if (e.key === "Escape") pause();
+      });
+      window.addEventListener("keyup", (e) => {
+        if (e.key === "ArrowLeft") keys.left = false;
+        if (e.key === "ArrowRight") keys.right = false;
+      });
+      cv.addEventListener("pointerdown", (e) => {
+        if (document.getElementById("startOv").style.display !== "none") return;
+        touchState.active = true;
+        touchState.lastX = e.clientX;
+        touchState.pointerId = e.pointerId;
+        try {
+          cv.setPointerCapture(e.pointerId);
+        } catch (e) {}
+      });
+      cv.addEventListener("pointermove", (e) => {
+        if (touchState.active && e.pointerId === touchState.pointerId) {
+          touchState.lastX = e.clientX;
+        }
+      });
+      cv.addEventListener("pointerup", (e) => {
+        if (e.pointerId === touchState.pointerId) {
+          touchState.active = false;
+          try {
+            cv.releasePointerCapture(e.pointerId);
+          } catch (err) {}
+          touchState.pointerId = null;
+        }
+      });
+      cv.addEventListener(
+        "touchstart",
+        (e) => {
+          if (document.getElementById("startOv").style.display !== "none")
+            return;
+          const t = e.changedTouches[0];
+          touchState.active = true;
+          touchState.lastX = t.clientX;
+          e.preventDefault();
+        },
+        { passive: false }
+      );
+      cv.addEventListener(
+        "touchmove",
+        (e) => {
+          const t = e.changedTouches[0];
+          touchState.active = true;
+          touchState.lastX = t.clientX;
+          e.preventDefault();
+        },
+        { passive: false }
+      );
+      cv.addEventListener(
+        "touchend",
+        (e) => {
+          touchState.active = false;
+        },
+        { passive: false }
+      );
+      cv.addEventListener("mousedown", (e) => {
+        if (document.getElementById("startOv").style.display !== "none") return;
+        touchState.active = true;
+        touchState.lastX = e.clientX;
+      });
+      window.addEventListener("mousemove", (e) => {
+        if (touchState.active) touchState.lastX = e.clientX;
+      });
+      window.addEventListener("mouseup", (e) => {
+        touchState.active = false;
+      });
+      function toast(msg) {
+        const el = document.getElementById("toast");
+        el.textContent = msg;
+        el.classList.add("show");
+        setTimeout(() => el.classList.remove("show"), 800);
+      }
+      reset();
+      requestAnimationFrame(loop);
+    </script>
+  </body>
+</html>
