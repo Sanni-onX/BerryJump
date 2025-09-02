@@ -619,8 +619,8 @@
         // cameraY -= AUTO_SCROLL_SPEED * dt;
         // heightScore += AUTO_SCROLL_SPEED * dt;
 
-        if (timeAlive > 0.5) {
-          const scrollSpeed = 0.4 + 0.005 * score; // pixels per frame (tune this!)
+        if (timeAlive > 1) {
+          const scrollSpeed = 0.4 + 0.002 * timeAlive; // pixels per frame (tune this!)
           cameraY -= scrollSpeed * (dt / 16.6); // normalized to frame time
           heightScore += scrollSpeed * (dt / 16.6);
         }
