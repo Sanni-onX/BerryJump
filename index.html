@@ -233,9 +233,11 @@
         <canvas id="cv" width="420" height="740"></canvas>
         <div class="hud">
           <div class="pill" id="scorePill">Score: 0</div>
-          <div class="pill">Height: <span id="heightVal">0</span></div>
+          <div class="pill" style="display: none">
+            Height: <span id="heightVal">0</span>
+          </div>
           <div class="pill">Time: <span id="timeVal">0.0</span>s</div>
-          <div class="pill">High: <span id="highVal">0</span></div>
+          <div class="pill">Prev High: <span id="highVal">0</span></div>
           <div class="pill btn" id="pauseBtn">⏸</div>
         </div>
         <div class="help">← → or swipe</div>
@@ -266,7 +268,8 @@
         <div class="overlay" id="gameOverOv" style="display: none">
           <div class="card" style="text-align: center">
             <h3>Game Over</h3>
-            <p>Your score: <b id="finalScore">0</b></p>
+            <p>Score: <b id="finalScore">0</b></p>
+            <p>High score: <b id="finalHigh">0</b></p>
             <div class="actions" style="justify-content: center">
               <button id="againBtn">Play Again</button>
             </div>
@@ -478,11 +481,11 @@
         if (typeof forceType !== "undefined") {
           type = forceType;
         } else {
-          if (score >= 1200) {
+          if (timeAlive >= 80) {
             if (r > 0.75) type = TYPES.MOVING;
             else if (r > 0.55) type = TYPES.BREAK;
             else type = TYPES.STATIC;
-          } else if (score >= 600) {
+          } else if (timeAlive >= 35) {
             if (r > 0.65) type = TYPES.BREAK;
             else type = TYPES.STATIC;
           } else {
@@ -521,14 +524,24 @@
         if (keys.left) PLAYER.vx -= acc;
         if (keys.right) PLAYER.vx += acc;
         if (touchState.active) {
-          const rect = cv.getBoundingClientRect();
-          const scaleX = cv.width / rect.width;
-          const targetXcanvas = (touchState.lastX - rect.left) * scaleX;
-          const center = PLAYER.x + PLAYER.w / 2;
-          const diff = targetXcanvas - center;
-          const targetVel = Math.max(-9, Math.min(9, diff * 0.035));
-          PLAYER.vx += (targetVel - PLAYER.vx) * 0.28;
+          if (touchState.prevX !== undefined) {
+            const dx = (touchState.lastX - touchState.prevX) * 0.12; // sensitivity
+            PLAYER.vx += dx;
+          }
+          touchState.prevX = touchState.lastX;
+        } else {
+          touchState.prevX = undefined;
         }
+
+        // if (touchState.active) {
+        //   const rect = cv.getBoundingClientRect();
+        //   const scaleX = cv.width / rect.width;
+        //   const targetXcanvas = (touchState.lastX - rect.left) * scaleX;
+        //   const center = PLAYER.x + PLAYER.w / 2;
+        //   const diff = targetXcanvas - center;
+        //   const targetVel = Math.max(-9, Math.min(9, diff * 0.07));
+        //   PLAYER.vx += (targetVel - PLAYER.vx) * 0.35;
+        // }
         PLAYER.vy += GRAV * (PLAYER.jet > 0 ? 0.35 : 1);
         PLAYER.x += PLAYER.vx;
         PLAYER.y += PLAYER.vy;
@@ -601,6 +614,17 @@
           cameraY -= delta;
           heightScore += delta;
         }
+
+        // const AUTO_SCROLL_SPEED = 0.04; // tune this number for difficulty
+        // cameraY -= AUTO_SCROLL_SPEED * dt;
+        // heightScore += AUTO_SCROLL_SPEED * dt;
+
+        if (timeAlive > 0.5) {
+          const scrollSpeed = 0.4 + 0.005 * score; // pixels per frame (tune this!)
+          cameraY -= scrollSpeed * (dt / 16.6); // normalized to frame time
+          heightScore += scrollSpeed * (dt / 16.6);
+        }
+
         for (const p of platforms) {
           if (p.y - cameraY > H + 30) p.remove = true;
         }
@@ -766,6 +790,7 @@
           localStorage.setItem("dj_high", high);
           document.getElementById("highVal").textContent = high;
         }
+        document.getElementById("finalHigh").textContent = high;
       }
       document.getElementById("pauseBtn").onclick = pause;
       document.getElementById("resumeBtn").onclick = resume;
